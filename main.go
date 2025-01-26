@@ -19,7 +19,7 @@ import (
 var logger *log.Logger
 
 func init() {
-	flag.String("config", "config.yaml", "config file")
+	flag.String("f", "config.yaml", "path to config file")
 
 	writer, err := syslog.New(syslog.LOG_INFO, "pubsub-execd")
 	if err != nil {
