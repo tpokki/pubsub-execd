@@ -7,18 +7,25 @@ SRC=$(wildcard *.go)
 APP=pubsub-execd
 PLATFORMS=darwin-arm64 linux-amd64
 
-all: $(APP)
+all: test $(APP)
 
-$(APP): $(SRC) bin $(PLATFORMS); @ echo "$(GC) build done" ;
+test:; @ echo "$(YC) running tests..." ;
+	@ go test -v ./...
+
+$(APP): $(SRC) $(PLATFORMS); @ echo "$(GC) build done" ;
 
 bin:
 	@ mkdir -p bin
 
-darwin-arm64:; @ echo "$(YC) building for darwin..." ;
-	@ GOOS=darwin  GOARCH=arm64 go build -o bin/$(APP)-$@
+darwin-arm64: bin/$(APP)-darwin-arm64 ; @ echo "$(YC) building for darwin..." ;
 
-linux-amd64:; @ echo "$(YC) building for linux..." ;
-	@ GOOS=linux   GOARCH=amd64 go build -o bin/$(APP)-$@k
+bin/$(APP)-darwin-arm64: bin $(SRC)
+	@ GOOS=darwin  GOARCH=arm64 go build -o $@
+
+linux-amd64: bin/$(APP)-linux-amd64 ; @ echo "$(YC) building for linux..." ;
+
+bin/$(APP)-linux-amd64: bin $(SRC)
+	@ GOOS=linux   GOARCH=amd64 go build -o $@
 
 clean: ; @ echo "$(YC) cleaning..." ;
 	@ rm -fr bin/
