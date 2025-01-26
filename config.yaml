@@ -1,0 +1,12 @@
+triggers:
+  - name: example
+    run:
+      timeout: 1h
+      concurrency: 1
+      exec: /bin/echo
+      args:
+        expression: {{ .Attributes.Foobar }}
+    pubsub:
+      project: asd
+      subscription: asd
+
