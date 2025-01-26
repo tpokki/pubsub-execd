@@ -5,8 +5,8 @@ triggers:
       concurrency: 1
       exec: /bin/echo
       args:
-        expression: {{ .Attributes.Foobar }}
+        expression: {{ .Attributes.foobar }} {{ .Payload.foo.bar }}
     pubsub:
-      project: asd
-      subscription: asd
+      project: sample123
+      subscription: execd
 

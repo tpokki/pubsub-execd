@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"text/template"
@@ -15,15 +16,16 @@ import (
 	"cloud.google.com/go/pubsub"
 )
 
-var logger *syslog.Writer
+var logger *log.Logger
 
 func init() {
 	flag.String("config", "config.yaml", "config file")
-	var err error
-	logger, err = syslog.New(syslog.LOG_INFO, "pubsub-executor")
+
+	writer, err := syslog.New(syslog.LOG_INFO, "pubsub-execd")
 	if err != nil {
 		panic(err)
 	}
+	logger = log.New(writer, "", 0)
 }
 
 func main() {
@@ -36,32 +38,32 @@ func main() {
 
 	// run triggers
 	for _, trigger := range config.Triggers {
-		go run(ctx, trigger)
+		sub, err := subscribe(ctx, trigger.PubSub)
+		if err != nil {
+			panic(err)
+		}
+
+		go run(ctx, trigger.Run, sub)
 	}
 
 	// wait for termination signal
 	select {
 	case <-ctx.Done():
-		logger.Info("Terminating")
+		logger.Print("Terminating")
 		os.Exit(0)
 	}
 }
 
-func run(ctx context.Context, trigger TriggerConfig) {
-	sub, err := subscribe(ctx, trigger.PubSub)
-	if err != nil {
-		panic(err)
-	}
-
+func run(ctx context.Context, run RunConfig, sub *pubsub.Subscription) {
 	// set the max extension to the trigger timeout to avoid message re-delivery
-	sub.ReceiveSettings.MaxExtension = trigger.Run.Timeout
+	sub.ReceiveSettings.MaxExtension = run.Timeout
 
 	// set the number of goroutines to the concurrency level
-	sub.ReceiveSettings.NumGoroutines = trigger.Run.Concurrency
-	sub.ReceiveSettings.Synchronous = trigger.Run.Concurrency == 1
+	sub.ReceiveSettings.NumGoroutines = run.Concurrency
+	sub.ReceiveSettings.Synchronous = run.Concurrency == 1
 
 	// parser for args template
-	tmpl, err := template.New("args").Parse(trigger.Run.Args.Expression)
+	tmpl, err := template.New("args").Parse(run.Args.Expression)
 	if err != nil {
 		panic(err)
 	}
@@ -89,20 +91,21 @@ func run(ctx context.Context, trigger TriggerConfig) {
 		args := new(bytes.Buffer)
 		tmpl.Execute(args, input)
 
-		logger.Info(fmt.Sprintf("Running command: %s %s", trigger.Run.Exec, args.String()))
+		logger.Print(fmt.Sprintf("Running command: %s %s", run.Exec, args.String()))
 
 		// run the command
-		cmd := exec.CommandContext(ctx, trigger.Run.Exec, args.String())
-		cmd.Stdout = logger
-		cmd.Stderr = logger
+		cmd := exec.CommandContext(ctx, run.Exec, args.String())
+		cmd.Stdout = logger.Writer()
+		cmd.Stderr = logger.Writer()
 
 		err = cmd.Run()
 		if err != nil {
 			msg.Nack()
-			logger.Err(err.Error())
+			logger.Print("non-zero exit value for command", cmd, err)
 			return
 		}
 
+		logger.Printf("Command %s executed successfully", run.Exec)
 		msg.Ack()
 	})
 }
