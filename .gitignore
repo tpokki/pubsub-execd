@@ -1,1 +1,3 @@
-pubsub-execd
+test/
+bin/
+.vscode/
