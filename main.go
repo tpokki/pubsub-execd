@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"log/syslog"
 	"os"
 	"os/exec"
 	"text/template"
-
-	"log/syslog"
 
 	"cloud.google.com/go/pubsub"
 )
@@ -20,19 +20,31 @@ var logger *log.Logger
 
 func init() {
 	flag.String("f", "config.yaml", "path to config file")
-
-	writer, err := syslog.New(syslog.LOG_INFO, "pubsub-execd")
-	if err != nil {
-		panic(err)
-	}
-	logger = log.New(writer, "", 0)
 }
 
 func main() {
 	flag.Parse()
 
 	// Load config
-	config := loadConfig(flag.Lookup("config").Value.String())
+	config := loadConfig(flag.Lookup("f").Value.String())
+
+	// setup logger
+	switch config.Logging.Output {
+	case "syslog":
+		writer, err := syslog.New(syslog.LOG_INFO, "pubsub-execd")
+		if err != nil {
+			panic(err)
+		}
+		logger = log.New(writer, "", 0)
+	case "none":
+		logger = log.New(io.Discard, "", 0)
+	case "stderr":
+		logger = log.New(os.Stderr, "", log.LstdFlags)
+	case "stdout":
+		fallthrough
+	default:
+		logger = log.New(os.Stdout, "", log.LstdFlags)
+	}
 
 	ctx, _ := context.WithCancel(context.Background())
 

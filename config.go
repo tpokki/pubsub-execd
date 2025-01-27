@@ -8,7 +8,12 @@ import (
 )
 
 type Config struct {
+	Logging  LogConfig       `yaml:"logging"`
 	Triggers []TriggerConfig `yaml:"triggers"`
+}
+
+type LogConfig struct {
+	Output string `yaml:"output"`
 }
 
 type TriggerConfig struct {
@@ -18,7 +23,7 @@ type TriggerConfig struct {
 }
 
 type PubSubConfig struct {
-	project      string `yaml:"project"`
+	Project      string `yaml:"project"`
 	Subscription string `yaml:"subscription"`
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 func subscribe(ctx context.Context, config PubSubConfig) (*pubsub.Subscription, error) {
-	client, err := pubsub.NewClient(ctx, config.project)
+	client, err := pubsub.NewClient(ctx, config.Project)
 	if err != nil {
 		return nil, err
 	}
